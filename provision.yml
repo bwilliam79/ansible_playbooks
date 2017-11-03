@@ -1,0 +1,236 @@
+---
+- hosts: digitalocean
+
+  vars:
+    do_token: "{{ lookup('env','DO_API_KEY') }}"
+    swarm_managers:
+      - swarm-manager-1
+      - swarm-manager-2
+    swarm_workers:
+      - swarm-worker-1
+      - swarm-worker-2
+      - swarm-worker-3
+
+  gather_facts: False 
+
+  tasks:
+
+  - name: Ensure key exists at DigitalOcean
+    digital_ocean:
+      state: present
+      command: ssh
+      name: ansible
+      ssh_pub_key: "{{ lookup('file', '~/.ssh/id_rsa.pub') }}"
+      api_token: "{{ do_token }}"
+    register: ansible
+
+  - name: Provision swarm managers
+    digital_ocean:
+      state: present
+      command: droplet
+      name: "{{ item }}" 
+      unique_name: yes
+      size_id: 512mb
+      private_networking: yes
+      region_id: sfo2
+      image_id: centos-7-2-x64
+      ssh_key_ids: "{{ ansible.ssh_key.id }}"
+      api_token: "{{ do_token }}"
+    with_items: "{{ swarm_managers }}"
+    register: droplet_details
+
+  - name: Add swarm managers to the inventory
+    add_host:
+      name: "{{ item.droplet.name }}"
+      hostname: "{{ item.droplet.name }}"
+      ansible_host: "{{ item.droplet.ip_address }}"
+      ansible_user: root
+      group: swarm_managers
+    with_items: "{{ droplet_details.results }}"
+
+  - name: Provision swarm workers
+    digital_ocean:
+      state: present
+      command: droplet
+      name: "{{ item }}"
+      unique_name: yes
+      size_id: 512mb
+      private_networking: yes
+      region_id: sfo2
+      image_id: centos-7-2-x64
+      ssh_key_ids: "{{ ansible.ssh_key.id }}"
+      api_token: "{{ do_token }}"
+    with_items: "{{ swarm_workers }}"
+    register: droplet_details
+
+  - name: Add swarm workers to the inventory
+    add_host:
+      name: "{{ item.droplet.name }}"
+      hostname: "{{ item.droplet.name }}"
+      ansible_host: "{{ item.droplet.ip_address }}"
+      ansible_user: root
+      group: swarm_workers
+    with_items: "{{ droplet_details.results }}"
+
+- hosts: swarm_managers, swarm_workers
+
+  gather_facts: False
+
+  tasks:
+
+  - name: Wait for nodes to come online
+    wait_for:
+      state: started
+      port: 22
+      delay: 10
+      host: "{{ ansible_ssh_host }}"
+
+- hosts: swarm_managers, swarm_workers
+
+  tasks:
+
+  - name: Add docker upstream repo
+    yum_repository:
+      name: DockerProject
+      description: Docker Repository
+      baseurl: https://yum.dockerproject.org/repo/main/centos/7/
+      enabled: 1
+      gpgcheck: 1
+      gpgkey: https://yum.dockerproject.org/gpg
+
+  - name: Install docker engine on docker hosts
+    yum:
+      name: "{{ item }}"
+      state: present
+    with_items:
+      - docker-engine
+      - docker-python
+
+  - name: Start and enable docker engine
+    service:
+      name: docker
+      state: started
+      enabled: yes
+
+- hosts: swarm_managers
+  
+  tasks:
+
+    - name: Determine swarm status
+      shell: >
+        docker info | egrep '^Swarm: ' | cut -d ' ' -f2
+      register: swarm_status
+
+    - name: Create swarm_manager_operational group
+      add_host:
+        hostname: "{{ item }}"
+        groups: swarm_manager_operational
+      with_items: "{{ ansible_play_hosts | default(play_hosts) }}"
+      when: "'active' in hostvars[item].swarm_status.stdout_lines"
+      run_once: true
+
+    - name: Create swarm_manager_bootstrap group
+      add_host:
+        hostname: "{{ item }}"
+        groups: swarm_manager_bootstrap
+      with_items: "{{ ansible_play_hosts | default(play_hosts) }}"
+      when: "'active' not in hostvars[item].swarm_status.stdout_lines"
+      run_once: true
+
+- hosts: swarm_workers
+
+  tasks:
+    - name: Determine swarm status
+      shell: > 
+        docker info | egrep '^Swarm: ' | cut -d ' ' -f2
+      register: swarm_status
+
+    - name: Create swarm_worker_operational group
+      add_host:
+        hostname: "{{ item }}"
+        groups: swarm_worker_operational
+      with_items: "{{ ansible_play_hosts | default(play_hosts) }}"
+      when: "'active' in hostvars[item].swarm_status.stdout_lines"
+      run_once: true
+
+    - name: Create swarm_worker_bootstrap group
+      add_host:
+        hostname: "{{ item }}"
+        groups: swarm_worker_bootstrap
+      with_items: "{{ ansible_play_hosts | default(play_hosts) }}"
+      when: "'active' not in hostvars[item].swarm_status.stdout_lines"
+      run_once: true
+
+- hosts: swarm_manager_bootstrap[0]
+
+  tasks:
+
+    - name: Initialize swarm cluster
+      shell: >
+        docker swarm init
+        --advertise-addr={{ swarm_iface | default('eth1') }}:2377
+      when: "'swarm_manager_operational' not in groups"
+      register: bootstrap_first_node
+
+    - name: Add initialized host to swarm_manager_operational group
+      add_host:
+        hostname: "{{ item }}"
+        groups: swarm_manager_operational
+      with_items: "{{ ansible_play_hosts | default(play_hosts) }}"
+      when: bootstrap_first_node | changed
+
+- hosts: swarm_manager_operational[0]
+  
+  vars:
+    iface: "{{ swarm_iface | default('eth1') }}"
+  
+  tasks:
+    - name: Retrieve swarm manager token
+      shell: docker swarm join-token -q manager
+      register: swarm_manager_token
+
+    - name: Retrieve swarm worker token
+      shell: docker swarm join-token -q worker
+      register: swarm_worker_token
+
+    - name: Populate list of manager ips
+      add_host:
+        hostname: "{{ hostvars[item]['ansible_' + iface]['ipv4']['address'] }}"
+        groups: swarm_manager_ips
+      with_items: "{{ ansible_play_hosts | default(play_hosts) }}" 
+
+- hosts: swarm_manager_bootstrap:!swarm_manager_operational
+
+  vars:
+    token: "{{ hostvars[groups['swarm_manager_operational'][0]]['swarm_manager_token']['stdout'] }}" 
+
+  tasks:
+    - name: Join manager nodes to cluster
+      shell: >
+        docker swarm join
+        --advertise-addr={{ swarm_iface | default('eth1') }}:2377
+        --token={{ token }}
+        {{ groups['swarm_manager_ips'][0] }}:2377
+
+- hosts: swarm_worker_bootstrap
+
+  vars:
+    token: "{{ hostvars[groups['swarm_manager_operational'][0]]['swarm_worker_token']['stdout'] }}"
+
+  tasks:
+
+    - name: Join worker nodes to cluster
+      shell: >
+        docker swarm join
+        --advertise-addr={{ swarm_iface | default('eth1') }}:2377
+        --token={{ token }}
+        {{ groups['swarm_manager_ips'][0] }}:2377
+
+- hosts: swarm_managers, swarm_workers 
+
+  gather_facts: False
+
+  tasks:
+
+  - debug:
+      var: ansible_default_ipv4.address
