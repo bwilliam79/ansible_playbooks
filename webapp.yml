@@ -1,0 +1,88 @@
+---
+- hosts: all
+  become: true
+  tasks:
+     - name: Set up local yum repo
+       yum_repository:
+         name: localrepo
+         description: Local yum repo
+         baseurl: http://ghostrider/centos7
+
+- hosts: web 
+  become: true
+  tasks:
+     - name: Install httpd
+       yum: 
+         name={{ item }} state=present disablerepo="base,extras,updates"
+       with_items:
+       - httpd
+       - php
+       - php-mysql
+
+     - name: Copy and extract web app
+       unarchive:
+         src: /srv/webapp.tgz
+         dest: /var/www/html
+         remote_src: no
+
+     - name: Grrr... SELinux... must... not... disable... 
+       seboolean:
+         name: httpd_can_network_connect_db
+         state: yes
+         persistent: yes
+
+     - name: Start and enable httpd
+       service:
+         name: httpd
+         state: started
+         enabled: yes
+
+     - name: Open firewall for httpd
+       firewalld:
+         service: http
+         state: enabled
+         permanent: true
+         immediate: yes
+
+- hosts: db
+  become: true
+  tasks:
+     - name: Install mariadb
+       yum:
+         name={{ item }} state=present disablerepo="base,extras,updates"
+       with_items:
+       - mariadb
+       - mariadb-server
+       - MySQL-python
+
+     - name: Start and enable mariadb
+       service:
+         name: mariadb
+         state: started
+         enabled: yes
+
+     - name: Copy database
+       copy:
+         src: /srv/database_backup.sql
+         dest: /tmp/database_backup.sql
+       register: db_seeded
+
+     - name: Import database backup
+       mysql_db:
+         state: import
+         name: all
+         target: /tmp/database_backup.sql
+       when: db_seeded.changed
+
+     - name: Restart mariadb after DB import
+       service:
+         name: mariadb
+         state: restarted
+       when: db_seeded.changed
+
+     - name: Open firewall for mariadb
+       firewalld:
+         service: mysql
+         state: enabled
+         permanent: true
+         immediate: yes
