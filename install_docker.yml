@@ -1,32 +1,33 @@
 ---
+name: Install Docker
 
-- name: Update packages on host(s)
-  yum:
-    name: '*'
-    state: latest
+  - name: Update packages on host(s)
+    yum:
+      name: '*'
+      state: latest
 
-- name: Add docker upstream repo
-  yum_repository:
-    name: Docker CE Stable - $basearch
-    description: Docker Repository
-    baseurl: https://download.docker.com/linux/centos/7/$basearch/stable
-    enabled: 1
-    gpgcheck: 1
-    gpgkey: https://download.docker.com/linux/centos/gpg
+  - name: Add docker upstream repo
+    yum_repository:
+      name: Docker CE Stable - $basearch
+      description: Docker Repository
+      baseurl: https://download.docker.com/linux/centos/7/$basearch/stable
+      enabled: 1
+      gpgcheck: 1
+      gpgkey: https://download.docker.com/linux/centos/gpg
 
-- name: Install docker engine on docker hosts
-  yum:
-    name: "{{ item }}"
-    state: present
-  with_items:
-    - docker-ce
-    - docker-python
+  - name: Install docker engine on docker hosts
+    yum:
+      name: "{{ item }}"
+      state: present
+    with_items:
+      - docker-ce
+      - docker-python
 
-- name: Start and enable docker engine
-  service:
-    name: docker
-    state: started
-    enabled: yes
+  - name: Start and enable docker engine
+    service:
+      name: docker
+      state: started
+      enabled: yes
 
-- name: Enable Nutanix volume plugin for containers
-  command: docker plugin install ntnx/nutanix_volume_plugin:latest PRISM_IP="192.168.0.5" DATASERVICES_IP="192.168.0.6" PRISM_USERNAME="docker" PRISM_PASSWORD='C0nt@1n!' DEFAULT_CONTAINER="Containers" --alias nutanix
+  - name: Enable Nutanix volume plugin for containers
+    command: docker plugin install ntnx/nutanix_volume_plugin:latest PRISM_IP="192.168.0.5" DATASERVICES_IP="192.168.0.6" PRISM_USERNAME="docker" PRISM_PASSWORD='C0nt@1n!' DEFAULT_CONTAINER="Containers" --alias nutanix
