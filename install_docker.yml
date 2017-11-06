@@ -11,7 +11,7 @@
 
   - name: Add docker upstream repo
     yum_repository:
-      name: Docker CE Stable - $basearch
+      name: docker-ce-stable
       description: Docker Repository
       baseurl: https://download.docker.com/linux/centos/7/$basearch/stable
       enabled: 1
