@@ -1,4 +1,4 @@
-tasks:
+---
 
 - name: Update packages on host(s)
   yum:
