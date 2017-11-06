@@ -1,5 +1,3 @@
-- hosts: docker_host
-
   tasks:
 
   - name: Update packages on host(s)
