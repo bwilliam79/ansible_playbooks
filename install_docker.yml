@@ -25,12 +25,22 @@
     with_items:
       - docker-ce
       - docker-python
+      - iscsi-initiator-utils
+
+  - name: Start iscsi initator service
+    service:
+      name: iscsid
+      state: started
+      enabled: yes
 
   - name: Start and enable docker engine
     service:
       name: docker
       state: started
       enabled: yes
+
+  - name: Create systemd tmpfs files
+    command: systemd-tmpfiles --create
 
   - name: Enable Nutanix volume plugin for containers
     command: docker plugin install ntnx/nutanix_volume_plugin:latest PRISM_IP="192.168.0.5" DATASERVICES_IP="192.168.0.6" PRISM_USERNAME="docker" PRISM_PASSWORD='C0nt@1n!' DEFAULT_CONTAINER="Containers" --alias nutanix
