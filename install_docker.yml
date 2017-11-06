@@ -3,8 +3,9 @@
   tasks:
 
   - name: Update packages on host(s)
-      action: yum -a "name=* state=latest"
-      only_if: "'$ansible_pkg_mgr' == 'yum'"
+    yum:
+      name: '*'
+      state: latest
 
   - name: Add docker upstream repo
     yum_repository:
