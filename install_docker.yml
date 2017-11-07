@@ -43,6 +43,11 @@
     command: systemd-tmpfiles --create
 
   - name: Enable Nutanix volume plugin for containers
-    command: docker plugin install --grant-all-permissions ntnx/nutanix_volume_plugin:latest PRISM_IP="192.168.0.5" DATASERVICES_IP="192.168.0.6" PRISM_USERNAME="docker" PRISM_PASSWORD='C0nt@1n!' DEFAULT_CONTAINER="Containers" --alias nutanix && touch /tmp/.docker_volume_plugin_nutanix
+    command: docker plugin install --grant-all-permissions ntnx/nutanix_volume_plugin:latest PRISM_IP="192.168.0.5" DATASERVICES_IP="192.168.0.6" PRISM_USERNAME="docker" PRISM_PASSWORD='C0nt@1n!' DEFAULT_CONTAINER="Containers" --alias nutanix
+    args:
+      creates: /tmp/.docker_volume_plugin_nutanix
+
+  - name: Create dummy file to prevent docker plugin install from running again
+    command: touch /tmp/.docker_volume_plugin_nutanix
     args:
       creates: /tmp/.docker_volume_plugin_nutanix
