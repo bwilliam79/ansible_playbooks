@@ -41,13 +41,20 @@
 
   - name: Create systemd tmpfs files
     command: systemd-tmpfiles --create
+    args:
+      creates: /root/.systemd_tmpfiles_create
+
+  - name: Create dummy file to prevent systemd-tmpfiles --create from running again
+    file:
+      path: /root/.systemd_tmpfiles_create
+      state: touch
 
   - name: Enable Nutanix volume plugin for containers
     command: docker plugin install --grant-all-permissions ntnx/nutanix_volume_plugin:latest PRISM_IP="192.168.0.5" DATASERVICES_IP="192.168.0.6" PRISM_USERNAME="docker" PRISM_PASSWORD='C0nt@1n!' DEFAULT_CONTAINER="Containers" --alias nutanix
     args:
-      creates: /tmp/.docker_volume_plugin_nutanix
+      creates: /root/.docker_install_nutanix_plugin
 
   - name: Create dummy file to prevent docker plugin install from running again
-    command: touch /tmp/.docker_volume_plugin_nutanix
-    args:
-      creates: /tmp/.docker_volume_plugin_nutanix
+    file:
+      path: /root/.docker_install_nutanix_plugin
+      state: touch
