@@ -50,7 +50,7 @@
       state: touch
 
   - name: Enable Nutanix volume plugin for containers
-    command: docker plugin install --grant-all-permissions ntnx/nutanix_volume_plugin:latest PRISM_IP="192.168.0.5" DATASERVICES_IP="192.168.0.6" PRISM_USERNAME="docker" PRISM_PASSWORD='C0nt@1n!' DEFAULT_CONTAINER="Containers" --alias nutanix
+    command: docker plugin install --grant-all-permissions ntnx/nutanix_volume_plugin:latest PRISM_IP="10.21.12.37" DATASERVICES_IP="10.21.12.38" PRISM_USERNAME="admin" PRISM_PASSWORD='techX2018!' DEFAULT_CONTAINER="Default" --alias nutanix
     args:
       creates: /root/.docker_install_nutanix_plugin
 
