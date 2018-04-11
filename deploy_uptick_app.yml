@@ -11,10 +11,8 @@
 
   - name: Install epel-release
     yum:
-      name: "{{ item }}"
+      name: epel-release
       state: present
-    with_itmes:
-      - epel-release
 
   - name: Install required packages
     yum:
