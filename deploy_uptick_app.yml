@@ -20,9 +20,9 @@
   - name: be sure firewalld is stopped
     systemd: name=firewalld state=stopped
     ignore_errors: yes
-
+    
   - selinux:
-    state: disabled
+      state: disabled
 
   - name: Create directory for code
     command: mkdir -p /var/www/projects
