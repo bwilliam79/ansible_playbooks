@@ -28,8 +28,8 @@
     command: mkdir -p /var/www/projects
 
   - git:
-    repo: https://github.com/mjastad/uptick.git
-    dest: /var/www/projects
+      repo: https://github.com/mjastad/uptick.git
+      dest: /var/www/projects
     
   - name: Change directory permissions
     command: chmod -R 755 /var/www/projects/uptick
@@ -56,8 +56,8 @@
     command: forever start /var/www/projects/uptick/server.js
 
   - git:
-    repo: https://github.com/mjastad/uptick.git
-    dest: /usr/share/nginx/html/
+      repo: https://github.com/mjastad/uptick.git
+      dest: /usr/share/nginx/html/
 
   - name: Move cloned repo
     command: mv /usr/share/nginx/html/uptick/* /usr/share/nginx/html/
