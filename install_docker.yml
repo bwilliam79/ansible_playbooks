@@ -4,11 +4,6 @@
 
   tasks:
 
-  - name: Update packages on host(s)
-    yum:
-      name: '*'
-      state: latest
-
   - name: Add docker upstream repo
     yum_repository:
       name: docker-ce-stable
