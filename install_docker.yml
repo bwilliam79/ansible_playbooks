@@ -12,14 +12,17 @@
       enabled: 1
       gpgcheck: 1
       gpgkey: https://download.docker.com/linux/centos/gpg
+    become: yes
 
   - name: Install docker engine on docker hosts
     yum:
       name: docker-ce
       state: present
+    become: yes
 
   - name: Start and enable docker engine
     service:
       name: docker
       state: started
       enabled: yes
+    become: yes
